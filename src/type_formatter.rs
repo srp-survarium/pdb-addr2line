@@ -778,7 +778,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             }
             previous_byte_was_pointer_sigil = true;
             if attr.is_pointer_const {
-                write!(w, " const")?;
+                // write!(w, " const")?;
                 previous_byte_was_pointer_sigil = false;
             }
         }
@@ -958,9 +958,9 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             TypeData::Pointer(ptr) => self.emit_ptr(w, ptr, modifier.constant)?,
             TypeData::Primitive(prim) => self.emit_primitive(w, prim, modifier.constant)?,
             _ => {
-                if modifier.constant {
-                    write!(w, "const ")?
-                }
+                // if modifier.constant {
+                //     write!(w, "const ")?
+                // }
                 self.emit_type(w, type_data)?;
             }
         }
@@ -1017,22 +1017,15 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         let name = match prim.kind {
             PrimitiveKind::NoType => "<NoType>",
             PrimitiveKind::Void => "void",
-            PrimitiveKind::Char => "signed char",
-            PrimitiveKind::UChar => "unsigned char",
-            PrimitiveKind::RChar => "char",
             PrimitiveKind::WChar => "wchar_t",
             PrimitiveKind::RChar16 => "char16_t",
             PrimitiveKind::RChar32 => "char32_t",
             PrimitiveKind::I8 => "int8_t",
             PrimitiveKind::U8 => "uint8_t",
-            PrimitiveKind::Short => "short",
-            PrimitiveKind::UShort => "unsigned short",
             PrimitiveKind::I16 => "int16_t",
             PrimitiveKind::U16 => "uint16_t",
             PrimitiveKind::Long => "long",
             PrimitiveKind::ULong => "unsigned long",
-            PrimitiveKind::I32 => "int",
-            PrimitiveKind::U32 => "unsigned int",
             PrimitiveKind::Quad => "long long",
             PrimitiveKind::UQuad => "unsigned long long",
             PrimitiveKind::I64 => "int64_t",
@@ -1055,23 +1048,32 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             PrimitiveKind::Bool32 => "bool32_t",
             PrimitiveKind::Bool64 => "bool64_t",
             PrimitiveKind::HRESULT => "HRESULT",
+
+            PrimitiveKind::Char => "s8",
+            PrimitiveKind::UChar => "u8",
+            PrimitiveKind::RChar => "char",
+            PrimitiveKind::Short => "s16",
+            PrimitiveKind::UShort => "u16",
+            PrimitiveKind::I32 => "s32",
+            PrimitiveKind::U32 => "u32",
+
             _ => panic!("Unknown PrimitiveKind {:?} in emit_primitive", prim.kind),
         };
 
         if prim.indirection.is_some() {
             if self.has_flags(TypeFormatterFlags::SPACE_BEFORE_POINTER) {
                 if is_const {
-                    write!(w, "{} const *", name)?
+                    write!(w, "const {} *", name)?
                 } else {
                     write!(w, "{} *", name)?
                 }
             } else if is_const {
-                write!(w, "{} const*", name)?
+                write!(w, "const {}*", name)?
             } else {
                 write!(w, "{}*", name)?
             }
         } else if is_const {
-            write!(w, "const {}", name)?
+            write!(w, "{}", name)?
         } else {
             write!(w, "{}", name)?
         }
