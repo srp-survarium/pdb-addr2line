@@ -101,7 +101,7 @@ struct TypeFormatterCache<'a> {
 // 's: The PDB Source lifetime.
 // 'cache: Lifetime of the exclusive reference to the TypeFormatterCache, outlived by
 //         the reference to the TypeFormatter.
-struct TypeFormatterForModule<'cache, 'a, 's> {
+pub struct TypeFormatterForModule<'cache, 'a, 's> {
     module_index: usize,
     module_provider: &'a (dyn ModuleProvider<'s> + Sync),
     modules: &'cache [Module<'a>],
@@ -169,7 +169,7 @@ impl<'a, 's> TypeFormatter<'a, 's> {
         &self.modules
     }
 
-    fn for_module<F, R>(&self, module_index: usize, f: F) -> R
+    pub fn for_module<F, R>(&self, module_index: usize, f: F) -> R
     where
         F: FnOnce(&mut TypeFormatterForModule<'_, 'a, 's>) -> R,
     {
@@ -995,6 +995,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
                 }
             }
             self.emit_type_index(w, *first)?;
+
             for index in args.iter() {
                 write!(w, ",")?;
                 if self.has_flags(TypeFormatterFlags::SPACE_AFTER_COMMA) {
@@ -1087,7 +1088,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_type_index(&mut self, w: &mut impl Write, index: TypeIndex) -> Result<()> {
+    pub fn emit_type_index(&mut self, w: &mut impl Write, index: TypeIndex) -> Result<()> {
         match self.parse_type_index(index) {
             Ok(type_data) => self.emit_type(w, type_data),
             Err(Error::PdbError(pdb::Error::UnimplementedTypeKind(t))) => {
