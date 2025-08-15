@@ -84,7 +84,7 @@ pub struct TypeFormatter<'a, 's> {
     string_table: Option<&'a StringTable<'s>>,
     cache: Mutex<TypeFormatterCache<'a>>,
     ptr_size: u64,
-    flags: TypeFormatterFlags,
+    pub flags: TypeFormatterFlags,
 }
 
 struct TypeFormatterCache<'a> {
