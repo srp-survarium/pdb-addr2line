@@ -69,7 +69,7 @@ use std::mem;
 use std::sync::{Arc, Mutex};
 use std::{borrow::Cow, cell::RefCell, collections::BTreeMap};
 
-type Result<V> = std::result::Result<V, Error>;
+pub type Result<V> = std::result::Result<V, Error>;
 
 /// Allows to easily create a [`Context`] directly from a [`pdb::PDB`].
 ///

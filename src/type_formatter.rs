@@ -1,4 +1,6 @@
 use crate::error::Error;
+use crate::Result;
+
 use bitflags::bitflags;
 use pdb::{
     ArgumentList, ArrayType, ClassKind, ClassType, CrossModuleExports, CrossModuleImports,
@@ -15,8 +17,6 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::mem;
 use std::sync::Mutex;
-
-type Result<V> = std::result::Result<V, Error>;
 
 bitflags! {
     /// Flags for [`TypeFormatter`].
