@@ -254,6 +254,10 @@ impl<'a, 's> TypeFormatter<'a, 's> {
     ) -> Result<()> {
         self.for_module(module_index, |tf| tf.emit_id(w, id_index))
     }
+
+    pub fn args_count(&self, module_index: usize, function_type_index: TypeIndex) -> Result<usize> {
+        self.for_module(module_index, |tf| tf.args_count(function_type_index))
+    }
 }
 
 impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
@@ -305,6 +309,18 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             }
         }
         Ok(())
+    }
+
+    pub fn args_count(&mut self, function_type_index: TypeIndex) -> Result<usize> {
+        if function_type_index == TypeIndex(0) {
+            return Ok(0);
+        }
+
+        match self.parse_type_index(function_type_index)? {
+            TypeData::MemberFunction(t) => self.args_count_member_function(t),
+            TypeData::Procedure(t) => self.args_count_procedure(t),
+            _ => Ok(0),
+        }
     }
 
     /// Write out the function or method signature, including return type (if requested),
@@ -732,6 +748,35 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         }
 
         Ok(())
+    }
+
+    fn args_count_member_function(&mut self, method_type: MemberFunctionType) -> Result<usize> {
+        let mut args_count = 0;
+
+        if let Some(this_type) = method_type.this_pointer_type {
+            // Not sure what those extra args are used for
+            let extra_args = self
+                .get_class_constness_and_extra_arguments(this_type, method_type.class_type)?
+                .1;
+            if extra_args.is_some() {
+                args_count += 1;
+            }
+        }
+
+        let args_list = match self.parse_type_index(method_type.argument_list)? {
+            TypeData::ArgumentList(t) => t,
+            _ => {
+                return Err(Error::ArgumentTypeNotArgumentList);
+            }
+        };
+        Ok(args_count + args_list.arguments.len())
+    }
+
+    fn args_count_procedure(&mut self, procedure: ProcedureType) -> Result<usize> {
+        let TypeData::ArgumentList(list) = self.parse_type_index(procedure.argument_list)? else {
+            return Err(Error::ArgumentTypeNotArgumentList);
+        };
+        Ok(list.arguments.len())
     }
 
     // Should we emit a space as the first byte from emit_attributes? It depends.
