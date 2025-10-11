@@ -255,6 +255,18 @@ impl<'a, 's> TypeFormatter<'a, 's> {
         self.for_module(module_index, |tf| tf.emit_id(w, id_index))
     }
 
+    pub fn emit_function_ret_ty(
+        &self,
+        w: &mut impl Write,
+        name: &str,
+        module_index: usize,
+        function_type_index: TypeIndex,
+    ) -> Result<()> {
+        self.for_module(module_index, |tf| {
+            tf.emit_function_ret_ty(w, name, function_type_index)
+        })
+    }
+
     pub fn args_count(&self, module_index: usize, function_type_index: TypeIndex) -> Result<usize> {
         self.for_module(module_index, |tf| tf.args_count(function_type_index))
     }
@@ -311,6 +323,28 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             _ => {
                 write!(w, "{}", name)?;
             }
+        }
+        Ok(())
+    }
+
+    pub fn emit_function_ret_ty(
+        &mut self,
+        w: &mut impl Write,
+        name: &str,
+        function_type_index: TypeIndex,
+    ) -> Result<()> {
+        if function_type_index == TypeIndex(0) {
+            return self.emit_name_str(w, name);
+        }
+
+        match self.parse_type_index(function_type_index)? {
+            TypeData::MemberFunction(t) => {
+                self.maybe_emit_return_type(w, Some(t.return_type), t.attributes)?;
+            }
+            TypeData::Procedure(t) => {
+                self.maybe_emit_return_type(w, t.return_type, t.attributes)?;
+            }
+            _ => (),
         }
         Ok(())
     }
