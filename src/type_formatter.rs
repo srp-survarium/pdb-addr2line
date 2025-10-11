@@ -258,6 +258,10 @@ impl<'a, 's> TypeFormatter<'a, 's> {
     pub fn args_count(&self, module_index: usize, function_type_index: TypeIndex) -> Result<usize> {
         self.for_module(module_index, |tf| tf.args_count(function_type_index))
     }
+
+    pub fn is_const_fn(&self, module_index: usize, function_type_index: TypeIndex) -> Result<bool> {
+        self.for_module(module_index, |tf| tf.is_const_fn(function_type_index))
+    }
 }
 
 impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
@@ -321,6 +325,26 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             TypeData::Procedure(t) => self.args_count_procedure(t),
             _ => Ok(0),
         }
+    }
+
+    pub fn is_const_fn(&mut self, function_type_index: TypeIndex) -> Result<bool> {
+        if function_type_index == TypeIndex(0) {
+            return Ok(false);
+        }
+
+        let is_const = match self.parse_type_index(function_type_index)? {
+            TypeData::MemberFunction(t) => match t.this_pointer_type {
+                None => false, // static
+                Some(this_type) => {
+                    self.get_class_constness_and_extra_arguments(this_type, t.class_type)?
+                        .0
+                }
+            },
+
+            TypeData::Procedure(_) => false,
+            _ => false, // I'd say this is error
+        };
+        Ok(is_const)
     }
 
     /// Write out the function or method signature, including return type (if requested),
