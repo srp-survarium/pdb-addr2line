@@ -79,22 +79,22 @@ pub trait ModuleProvider<'s> {
 // 'a: Lifetime of the thing that owns the various streams, e.g. ContextPdbData.
 // 's: The PDB Source lifetime.
 pub struct TypeFormatter<'a, 's> {
-    module_provider: &'a (dyn ModuleProvider<'s> + Sync),
-    modules: Vec<Module<'a>>,
-    string_table: Option<&'a StringTable<'s>>,
-    cache: Mutex<TypeFormatterCache<'a>>,
-    ptr_size: u64,
+    pub module_provider: &'a (dyn ModuleProvider<'s> + Sync),
+    pub modules: Vec<Module<'a>>,
+    pub string_table: Option<&'a StringTable<'s>>,
+    pub cache: Mutex<TypeFormatterCache<'a>>,
+    pub ptr_size: u64,
     pub flags: TypeFormatterFlags,
 }
 
-struct TypeFormatterCache<'a> {
-    type_map: TypeMap<'a>,
-    type_size_cache: TypeSizeCache<'a>,
-    id_map: IdMap<'a>,
+pub struct TypeFormatterCache<'a> {
+    pub type_map: TypeMap<'a>,
+    pub type_size_cache: TypeSizeCache<'a>,
+    pub id_map: IdMap<'a>,
     /// lower case module_name() -> module_index
-    module_name_map: Option<HashMap<String, usize>>,
-    module_imports: HashMap<usize, Result<CrossModuleImports<'a>>>,
-    module_exports: HashMap<usize, Result<CrossModuleExports>>,
+    pub module_name_map: Option<HashMap<String, usize>>,
+    pub module_imports: HashMap<usize, Result<CrossModuleImports<'a>>>,
+    pub module_exports: HashMap<usize, Result<CrossModuleExports>>,
 }
 
 // 'a: Lifetime of the thing that owns the various streams.
@@ -102,13 +102,13 @@ struct TypeFormatterCache<'a> {
 // 'cache: Lifetime of the exclusive reference to the TypeFormatterCache, outlived by
 //         the reference to the TypeFormatter.
 pub struct TypeFormatterForModule<'cache, 'a, 's> {
-    module_index: usize,
-    module_provider: &'a (dyn ModuleProvider<'s> + Sync),
-    modules: &'cache [Module<'a>],
-    string_table: Option<&'a StringTable<'s>>,
-    cache: &'cache mut TypeFormatterCache<'a>,
-    ptr_size: u64,
-    flags: TypeFormatterFlags,
+    pub module_index: usize,
+    pub module_provider: &'a (dyn ModuleProvider<'s> + Sync),
+    pub modules: &'cache [Module<'a>],
+    pub string_table: Option<&'a StringTable<'s>>,
+    pub cache: &'cache mut TypeFormatterCache<'a>,
+    pub ptr_size: u64,
+    pub flags: TypeFormatterFlags,
 }
 
 impl<'a, 's> TypeFormatter<'a, 's> {
@@ -461,12 +461,12 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
     ///
     /// ID records specify the mangled format for anonymous namespaces: `?A0x<id>`, where `id` is a hex
     /// identifier of the namespace. Demanglers usually resolve this as "anonymous namespace".
-    fn is_anonymous_namespace(name: &str) -> bool {
+    pub fn is_anonymous_namespace(name: &str) -> bool {
         name.strip_prefix("?A0x")
             .is_some_and(|rest| u32::from_str_radix(rest, 16).is_ok())
     }
 
-    fn resolve_index<I>(&mut self, index: I) -> Result<I>
+    pub fn resolve_index<I>(&mut self, index: I) -> Result<I>
     where
         I: ItemIndex,
     {
@@ -551,19 +551,19 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(index)
     }
 
-    fn parse_type_index(&mut self, index: TypeIndex) -> Result<TypeData<'a>> {
+    pub fn parse_type_index(&mut self, index: TypeIndex) -> Result<TypeData<'a>> {
         let index = self.resolve_index(index)?;
         let item = self.cache.type_map.try_get(index)?;
         Ok(item.parse()?)
     }
 
-    fn parse_id_index(&mut self, index: IdIndex) -> Result<IdData<'a>> {
+    pub fn parse_id_index(&mut self, index: IdIndex) -> Result<IdData<'a>> {
         let index = self.resolve_index(index)?;
         let item = self.cache.id_map.try_get(index)?;
         Ok(item.parse()?)
     }
 
-    fn get_class_size(&mut self, index: TypeIndex, class_type: &ClassType<'a>) -> u64 {
+    pub fn get_class_size(&mut self, index: TypeIndex, class_type: &ClassType<'a>) -> u64 {
         if class_type.properties.forward_reference() {
             let name = class_type.unique_name.unwrap_or(class_type.name);
             let size = self.cache.type_size_cache.get_size_for_forward_reference(
@@ -580,7 +580,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         }
     }
 
-    fn get_union_size(&mut self, index: TypeIndex, union_type: &UnionType<'a>) -> u64 {
+    pub fn get_union_size(&mut self, index: TypeIndex, union_type: &UnionType<'a>) -> u64 {
         if union_type.properties.forward_reference() {
             let name = union_type.unique_name.unwrap_or(union_type.name);
             let size = self.cache.type_size_cache.get_size_for_forward_reference(
@@ -595,7 +595,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         }
     }
 
-    fn get_data_size(&mut self, type_index: TypeIndex, type_data: &TypeData<'a>) -> u64 {
+    pub fn get_data_size(&mut self, type_index: TypeIndex, type_data: &TypeData<'a>) -> u64 {
         match type_data {
             TypeData::Primitive(t) => {
                 if t.indirection.is_some() {
@@ -664,11 +664,11 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         }
     }
 
-    fn has_flags(&self, flags: TypeFormatterFlags) -> bool {
+    pub fn has_flags(&self, flags: TypeFormatterFlags) -> bool {
         self.flags.intersects(flags)
     }
 
-    fn maybe_emit_static(&self, w: &mut impl Write) -> Result<()> {
+    pub fn maybe_emit_static(&self, w: &mut impl Write) -> Result<()> {
         if self.has_flags(TypeFormatterFlags::NO_MEMBER_FUNCTION_STATIC) {
             return Ok(());
         }
@@ -677,7 +677,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn maybe_emit_return_type(
+    pub fn maybe_emit_return_type(
         &mut self,
         w: &mut impl Write,
         type_index: Option<TypeIndex>,
@@ -691,7 +691,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_name_str(&mut self, w: &mut impl Write, name: &str) -> Result<()> {
+    pub fn emit_name_str(&mut self, w: &mut impl Write, name: &str) -> Result<()> {
         if name.is_empty() {
             write!(w, "<name omitted>")?;
         } else {
@@ -700,7 +700,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_return_type(
+    pub fn emit_return_type(
         &mut self,
         w: &mut impl Write,
         type_index: Option<TypeIndex>,
@@ -717,7 +717,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
 
     /// Check if ptr points to the specified class, and if so, whether it points to const or non-const class.
     /// If it points to a different class than the one supplied in the `class` argument, don'a check constness.
-    fn check_ptr_class(&mut self, ptr: TypeIndex, class: TypeIndex) -> Result<PtrToClassKind> {
+    pub fn check_ptr_class(&mut self, ptr: TypeIndex, class: TypeIndex) -> Result<PtrToClassKind> {
         if let TypeData::Pointer(ptr_type) = self.parse_type_index(ptr)? {
             let underlying_type = ptr_type.underlying_type;
             if underlying_type == class {
@@ -736,7 +736,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
     }
 
     /// Return value: (this is pointer to const class, optional extra first argument)
-    fn get_class_constness_and_extra_arguments(
+    pub fn get_class_constness_and_extra_arguments(
         &mut self,
         this: TypeIndex,
         class: TypeIndex,
@@ -762,7 +762,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         }
     }
 
-    fn emit_method_args(
+    pub fn emit_method_args(
         &mut self,
         w: &mut impl Write,
         method_type: MemberFunctionType,
@@ -808,7 +808,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn args_count_member_function(&mut self, method_type: MemberFunctionType) -> Result<usize> {
+    pub fn args_count_member_function(&mut self, method_type: MemberFunctionType) -> Result<usize> {
         let mut args_count = 0;
 
         if let Some(this_type) = method_type.this_pointer_type {
@@ -830,7 +830,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(args_count + args_list.arguments.len())
     }
 
-    fn args_count_procedure(&mut self, procedure: ProcedureType) -> Result<usize> {
+    pub fn args_count_procedure(&mut self, procedure: ProcedureType) -> Result<usize> {
         let TypeData::ArgumentList(list) = self.parse_type_index(procedure.argument_list)? else {
             return Err(Error::ArgumentTypeNotArgumentList);
         };
@@ -847,7 +847,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
     //  yes                 | pointer sigil         | off                       | *                   | no
     //  yes                 | pointer sigil         | on                        | pointer sigil       | no
     //  yes                 | pointer sigil         | on                        | not a pointer sigil | yes
-    fn emit_attributes(
+    pub fn emit_attributes(
         &mut self,
         w: &mut impl Write,
         attrs: Vec<PtrAttributes>,
@@ -888,7 +888,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_member_ptr(
+    pub fn emit_member_ptr(
         &mut self,
         w: &mut impl Write,
         fun: MemberFunctionType,
@@ -903,7 +903,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_proc_ptr(
+    pub fn emit_proc_ptr(
         &mut self,
         w: &mut impl Write,
         fun: ProcedureType,
@@ -920,7 +920,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_other_ptr(
+    pub fn emit_other_ptr(
         &mut self,
         w: &mut impl Write,
         type_data: TypeData,
@@ -939,7 +939,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_ptr_helper(
+    pub fn emit_ptr_helper(
         &mut self,
         w: &mut impl Write,
         attributes: Vec<PtrAttributes>,
@@ -953,7 +953,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_ptr(&mut self, w: &mut impl Write, ptr: PointerType, is_const: bool) -> Result<()> {
+    pub fn emit_ptr(&mut self, w: &mut impl Write, ptr: PointerType, is_const: bool) -> Result<()> {
         let mut attributes = vec![PtrAttributes {
             is_pointer_const: ptr.attributes.is_const() || is_const,
             is_pointee_const: false,
@@ -997,7 +997,10 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
 
     /// The returned Vec has the array dimensions in bytes, with the "lower" dimensions
     /// aggregated into the "higher" dimensions.
-    fn get_array_info(&mut self, array: ArrayType) -> Result<(Vec<u64>, TypeIndex, TypeData<'a>)> {
+    pub fn get_array_info(
+        &mut self,
+        array: ArrayType,
+    ) -> Result<(Vec<u64>, TypeIndex, TypeData<'a>)> {
         // For an array int[12][34] it'll be represented as "int[34] *".
         // For any reason the 12 is lost...
         // The internal representation is: Pointer{ base: Array{ base: int, dim: 34 * sizeof(int)} }
@@ -1034,7 +1037,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         }
     }
 
-    fn emit_array(&mut self, w: &mut impl Write, array: ArrayType) -> Result<()> {
+    pub fn emit_array(&mut self, w: &mut impl Write, array: ArrayType) -> Result<()> {
         let (dimensions_as_bytes, base_index, base) = self.get_array_info(array)?;
         let base_size = self.get_data_size(base_index, &base);
         self.emit_type(w, base)?;
@@ -1055,7 +1058,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_modifier(&mut self, w: &mut impl Write, modifier: ModifierType) -> Result<()> {
+    pub fn emit_modifier(&mut self, w: &mut impl Write, modifier: ModifierType) -> Result<()> {
         let type_data = self.parse_type_index(modifier.underlying_type)?;
         match type_data {
             TypeData::Pointer(ptr) => self.emit_ptr(w, ptr, modifier.constant)?,
@@ -1070,7 +1073,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_class(&mut self, w: &mut impl Write, class: ClassType) -> Result<()> {
+    pub fn emit_class(&mut self, w: &mut impl Write, class: ClassType) -> Result<()> {
         if self.has_flags(TypeFormatterFlags::NAME_ONLY) {
             write!(w, "{}", class.name)?;
         } else {
@@ -1084,7 +1087,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_arg_list(
+    pub fn emit_arg_list(
         &mut self,
         w: &mut impl Write,
         list: ArgumentList,
@@ -1110,7 +1113,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_primitive(
+    pub fn emit_primitive(
         &mut self,
         w: &mut impl Write,
         prim: PrimitiveType,
@@ -1129,8 +1132,8 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             PrimitiveKind::U16 => "uint16_t",
             PrimitiveKind::Long => "long",
             PrimitiveKind::ULong => "unsigned long",
-            PrimitiveKind::Quad => "long long",
-            PrimitiveKind::UQuad => "unsigned long long",
+            PrimitiveKind::Quad => "s64",
+            PrimitiveKind::UQuad => "u64",
             PrimitiveKind::I64 => "int64_t",
             PrimitiveKind::U64 => "uint64_t",
             PrimitiveKind::I128 | PrimitiveKind::Octa => "int128_t",
@@ -1183,7 +1186,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    fn emit_named(&mut self, w: &mut impl Write, base: &str, name: RawString) -> Result<()> {
+    pub fn emit_named(&mut self, w: &mut impl Write, base: &str, name: RawString) -> Result<()> {
         if self.has_flags(TypeFormatterFlags::NAME_ONLY) {
             write!(w, "{}", name)?
         } else {
@@ -1208,7 +1211,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         }
     }
 
-    fn emit_type(&mut self, w: &mut impl Write, type_data: TypeData) -> Result<()> {
+    pub fn emit_type(&mut self, w: &mut impl Write, type_data: TypeData) -> Result<()> {
         match self.emit_type_inner(w, type_data) {
             Ok(()) => Ok(()),
             Err(Error::PdbError(pdb::Error::TypeNotFound(type_index))) => {
@@ -1219,7 +1222,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         }
     }
 
-    fn emit_type_inner(&mut self, w: &mut impl Write, type_data: TypeData) -> Result<()> {
+    pub fn emit_type_inner(&mut self, w: &mut impl Write, type_data: TypeData) -> Result<()> {
         match type_data {
             TypeData::Primitive(t) => self.emit_primitive(w, t, false)?,
             TypeData::Class(t) => self.emit_class(w, t)?,
@@ -1249,7 +1252,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
 }
 
 #[derive(Eq, PartialEq)]
-enum PtrToClassKind {
+pub enum PtrToClassKind {
     PtrToGivenClass {
         /// If true, the pointer is a "pointer to const ClassType".
         constant: bool,
@@ -1258,15 +1261,15 @@ enum PtrToClassKind {
 }
 
 #[derive(Debug)]
-struct PtrAttributes {
-    is_pointer_const: bool,
-    is_pointee_const: bool,
-    mode: PointerMode,
+pub struct PtrAttributes {
+    pub is_pointer_const: bool,
+    pub is_pointee_const: bool,
+    pub mode: PointerMode,
 }
 
-struct ItemMap<'a, I: ItemIndex> {
-    iter: ItemIter<'a, I>,
-    finder: ItemFinder<'a, I>,
+pub struct ItemMap<'a, I: ItemIndex> {
+    pub iter: ItemIter<'a, I>,
+    pub finder: ItemFinder<'a, I>,
 }
 
 impl<'a, I> ItemMap<'a, I>
@@ -1291,10 +1294,10 @@ where
     }
 }
 
-type IdMap<'a> = ItemMap<'a, IdIndex>;
-type TypeMap<'a> = ItemMap<'a, TypeIndex>;
+pub type IdMap<'a> = ItemMap<'a, IdIndex>;
+pub type TypeMap<'a> = ItemMap<'a, TypeIndex>;
 
-struct TypeSizeCache<'a> {
+pub struct TypeSizeCache<'a> {
     /// A hashmap that maps a type's (unique) name to its type size.
     ///
     /// When computing type sizes, special care must be taken for types which are
@@ -1308,9 +1311,9 @@ struct TypeSizeCache<'a> {
     ///
     /// Type sizes are needed when computing array lengths based on byte lengths, when
     /// printing array types. They are also needed for the public get_type_size method.
-    forward_ref_sizes: HashMap<RawString<'a>, u64>,
+    pub forward_ref_sizes: HashMap<RawString<'a>, u64>,
 
-    cached_ranges: RangeSet2<u32>,
+    pub cached_ranges: RangeSet2<u32>,
 }
 
 impl<'a> TypeSizeCache<'a> {

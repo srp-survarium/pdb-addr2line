@@ -46,7 +46,8 @@ pub use pdb;
 
 mod constants;
 mod error;
-mod type_formatter;
+pub mod type_formatter;
+pub mod type_parser;
 
 pub use error::Error;
 pub use type_formatter::*;
