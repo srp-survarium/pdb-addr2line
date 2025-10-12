@@ -12,13 +12,15 @@ use pdb::{
     Variant,
 };
 
+#[derive(Debug, Clone)]
 pub struct Function {
     pub return_type: ReturnType,
     pub name: String,
-    pub args: Vec<String>,
+    pub arg_types: Vec<String>,
     pub attrs: AttributeFlags,
 }
 
+#[derive(Debug, Clone)]
 pub enum ReturnType {
     Constructor,
     Destructor,
@@ -26,7 +28,7 @@ pub enum ReturnType {
 }
 
 bitflags::bitflags! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct AttributeFlags: u32 {
         const IS_STATIC   = 1 << 0;
         const IS_CONST    = 1 << 7;
@@ -126,12 +128,12 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             _ => unreachable!("Deal with this when it happens"),
         };
 
-        let args = self.parse_arg_list(extra_first_arg, argument_list)?;
+        let arg_types = self.parse_arg_list(extra_first_arg, argument_list)?;
 
         Ok(Function {
             return_type,
             name,
-            args,
+            arg_types,
             attrs,
         })
     }
