@@ -158,7 +158,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
     ) -> Result<ReturnType> {
         let return_type = match () {
             () if attrs.is_constructor() => ReturnType::Constructor,
-            () if name.starts_with("~") => ReturnType::Destructor,
+            () if name.contains('~') => ReturnType::Destructor,
             () if type_index.is_some() => ReturnType::Type(self.parse_type(type_index.unwrap())?),
             () => unreachable!(),
         };
