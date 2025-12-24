@@ -881,7 +881,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             }
             previous_byte_was_pointer_sigil = true;
             if attr.is_pointer_const {
-                // write!(w, " const")?;
+                write!(w, " const")?;
                 previous_byte_was_pointer_sigil = false;
             }
         }
@@ -1064,9 +1064,9 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             TypeData::Pointer(ptr) => self.emit_ptr(w, ptr, modifier.constant)?,
             TypeData::Primitive(prim) => self.emit_primitive(w, prim, modifier.constant)?,
             _ => {
-                // if modifier.constant {
-                //     write!(w, "const ")?
-                // }
+                if modifier.constant {
+                    write!(w, "const ")?
+                }
                 self.emit_type(w, type_data)?;
             }
         }
@@ -1179,7 +1179,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
                 write!(w, "{}*", name)?
             }
         } else if is_const {
-            write!(w, "{}", name)?
+            write!(w, "const {}", name)?
         } else {
             write!(w, "{}", name)?
         }
