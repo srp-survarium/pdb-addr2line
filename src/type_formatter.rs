@@ -864,6 +864,14 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
                 is_at_beginning = false;
                 previous_byte_was_pointer_sigil = false;
             }
+            if attr.is_pointee_volatile {
+                if !is_at_beginning || allow_space_at_beginning {
+                    write!(w, " ")?;
+                }
+                write!(w, "volatile")?;
+                is_at_beginning = false;
+                previous_byte_was_pointer_sigil = false;
+            }
 
             if self.has_flags(TypeFormatterFlags::SPACE_BEFORE_POINTER)
                 && !previous_byte_was_pointer_sigil
@@ -882,6 +890,10 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             previous_byte_was_pointer_sigil = true;
             if attr.is_pointer_const {
                 write!(w, " const")?;
+                previous_byte_was_pointer_sigil = false;
+            }
+            if attr.is_pointer_volatile {
+                write!(w, " volatile")?;
                 previous_byte_was_pointer_sigil = false;
             }
         }
@@ -953,10 +965,18 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         Ok(())
     }
 
-    pub fn emit_ptr(&mut self, w: &mut impl Write, ptr: PointerType, is_const: bool) -> Result<()> {
+    pub fn emit_ptr(
+        &mut self,
+        w: &mut impl Write,
+        ptr: PointerType,
+        is_const: bool,
+        is_volatile: bool,
+    ) -> Result<()> {
         let mut attributes = vec![PtrAttributes {
             is_pointer_const: ptr.attributes.is_const() || is_const,
+            is_pointer_volatile: ptr.attributes.is_volatile() || is_volatile,
             is_pointee_const: false,
+            is_pointee_volatile: false,
             mode: ptr.attributes.pointer_mode(),
         }];
         let mut ptr = ptr;
@@ -966,19 +986,25 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
                 TypeData::Pointer(t) => {
                     attributes.push(PtrAttributes {
                         is_pointer_const: t.attributes.is_const(),
+                        is_pointer_volatile: t.attributes.is_volatile(),
                         is_pointee_const: false,
+                        is_pointee_volatile: false,
                         mode: t.attributes.pointer_mode(),
                     });
                     ptr = t;
                 }
                 TypeData::Modifier(t) => {
                     // the vec cannot be empty since we push something in just before the loop
-                    attributes.last_mut().unwrap().is_pointee_const = t.constant;
+                    let last = attributes.last_mut().unwrap();
+                    last.is_pointee_const = t.constant;
+                    last.is_pointee_volatile = t.volatile;
                     let underlying_type_data = self.parse_type_index(t.underlying_type)?;
                     if let TypeData::Pointer(t) = underlying_type_data {
                         attributes.push(PtrAttributes {
                             is_pointer_const: t.attributes.is_const(),
+                            is_pointer_volatile: t.attributes.is_volatile(),
                             is_pointee_const: false,
+                            is_pointee_volatile: false,
                             mode: t.attributes.pointer_mode(),
                         });
                         ptr = t;
@@ -1061,11 +1087,17 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
     pub fn emit_modifier(&mut self, w: &mut impl Write, modifier: ModifierType) -> Result<()> {
         let type_data = self.parse_type_index(modifier.underlying_type)?;
         match type_data {
-            TypeData::Pointer(ptr) => self.emit_ptr(w, ptr, modifier.constant)?,
-            TypeData::Primitive(prim) => self.emit_primitive(w, prim, modifier.constant)?,
+            // A modifier wrapping a pointer qualifies the pointer itself: `T* const` / `T* volatile`.
+            TypeData::Pointer(ptr) => self.emit_ptr(w, ptr, modifier.constant, modifier.volatile)?,
+            TypeData::Primitive(prim) => {
+                self.emit_primitive(w, prim, modifier.constant, modifier.volatile)?
+            }
             _ => {
                 if modifier.constant {
                     write!(w, "const ")?
+                }
+                if modifier.volatile {
+                    write!(w, "volatile ")?
                 }
                 self.emit_type(w, type_data)?;
             }
@@ -1118,6 +1150,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
         w: &mut impl Write,
         prim: PrimitiveType,
         is_const: bool,
+        is_volatile: bool,
     ) -> Result<()> {
         // TODO: check that these names are what we want to see
         let name = match prim.kind {
@@ -1166,22 +1199,20 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
             _ => panic!("Unknown PrimitiveKind {:?} in emit_primitive", prim.kind),
         };
 
+        let qualifiers = match (is_const, is_volatile) {
+            (true, true) => "const volatile ",
+            (true, false) => "const ",
+            (false, true) => "volatile ",
+            (false, false) => "",
+        };
         if prim.indirection.is_some() {
             if self.has_flags(TypeFormatterFlags::SPACE_BEFORE_POINTER) {
-                if is_const {
-                    write!(w, "const {} *", name)?
-                } else {
-                    write!(w, "{} *", name)?
-                }
-            } else if is_const {
-                write!(w, "const {}*", name)?
+                write!(w, "{}{} *", qualifiers, name)?
             } else {
-                write!(w, "{}*", name)?
+                write!(w, "{}{}*", qualifiers, name)?
             }
-        } else if is_const {
-            write!(w, "const {}", name)?
         } else {
-            write!(w, "{}", name)?
+            write!(w, "{}{}", qualifiers, name)?
         }
         Ok(())
     }
@@ -1224,7 +1255,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
 
     pub fn emit_type_inner(&mut self, w: &mut impl Write, type_data: TypeData) -> Result<()> {
         match type_data {
-            TypeData::Primitive(t) => self.emit_primitive(w, t, false)?,
+            TypeData::Primitive(t) => self.emit_primitive(w, t, false, false)?,
             TypeData::Class(t) => self.emit_class(w, t)?,
             TypeData::MemberFunction(t) => {
                 self.maybe_emit_return_type(w, Some(t.return_type), t.attributes)?;
@@ -1238,7 +1269,7 @@ impl<'a, 's> TypeFormatterForModule<'_, 'a, 's> {
                 write!(w, "")?;
             }
             TypeData::ArgumentList(t) => self.emit_arg_list(w, t, false)?,
-            TypeData::Pointer(t) => self.emit_ptr(w, t, false)?,
+            TypeData::Pointer(t) => self.emit_ptr(w, t, false, false)?,
             TypeData::Array(t) => self.emit_array(w, t)?,
             TypeData::Union(t) => self.emit_named(w, "union", t.name)?,
             TypeData::Enumeration(t) => self.emit_named(w, "enum", t.name)?,
@@ -1263,7 +1294,9 @@ pub enum PtrToClassKind {
 #[derive(Debug)]
 pub struct PtrAttributes {
     pub is_pointer_const: bool,
+    pub is_pointer_volatile: bool,
     pub is_pointee_const: bool,
+    pub is_pointee_volatile: bool,
     pub mode: PointerMode,
 }
 
